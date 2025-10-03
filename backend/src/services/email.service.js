@@ -1,39 +1,42 @@
-import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
 import logger from '../config/logger.js';
 
-let transporter;
+// Initialize SendGrid
+let isInitialized = false;
 
-export async function getTransporter() {
-  if (transporter) return transporter;
-
-  // Use Gmail SMTP configuration from .env
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = Number(process.env.SMTP_PORT || 587);
-  const secure = (process.env.SMTP_SECURE || 'false').toLowerCase() === 'true';
-  const auth = process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined;
+export function initializeSendGrid() {
+  if (isInitialized) return;
   
-  transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure,
-    auth,
-    connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 10000,   // 10 seconds
-    socketTimeout: 10000      // 10 seconds
-  });
-  return transporter;
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) {
+    throw new Error('SENDGRID_API_KEY is required');
+  }
+  
+  sgMail.setApiKey(apiKey);
+  isInitialized = true;
+  logger.info('SendGrid initialized successfully');
 }
 
 export async function sendEmail({ to, subject, html, text }) {
-  const from = process.env.EMAIL_FROM || 'FindMyStuff <no-reply@findmystuff.local>';
-  const mail = { from, to, subject, text, html };
   try {
-    const tx = await getTransporter();
-    const info = await tx.sendMail(mail);
-    logger.info('email sent', info.messageId || 'ok');
-    return info;
+    // Initialize SendGrid if not already done
+    initializeSendGrid();
+    
+    const from = process.env.EMAIL_FROM || 'FindMyStuff <no-reply@findmystuff.local>';
+    
+    const msg = {
+      to,
+      from,
+      subject,
+      text,
+      html,
+    };
+    
+    const response = await sgMail.send(msg);
+    logger.info('Email sent successfully', { messageId: response[0]?.headers?.['x-message-id'] || 'ok' });
+    return response;
   } catch (err) {
-    logger.error('email send failed', err.message);
+    logger.error('Email send failed', { error: err.message, code: err.code });
     throw err;
   }
 }
