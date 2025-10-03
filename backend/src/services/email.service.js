@@ -9,7 +9,7 @@ export async function getTransporter() {
   // Use Gmail SMTP configuration from .env
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = Number(process.env.SMTP_PORT || 587);
-  const secure = String(process.env.SMTP_SECURE || 'false') === 'true';
+  const secure = (process.env.SMTP_SECURE || 'false').toLowerCase() === 'true';
   const auth = process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined;
   
   transporter = nodemailer.createTransport({
