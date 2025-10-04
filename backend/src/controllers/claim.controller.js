@@ -15,9 +15,16 @@ export async function createClaim(req, res, next) {
     if (String(post.ownerId) === String(requesterId)) {
       return res.status(httpStatus.BAD_REQUEST).json({ error: 'Owners cannot claim their own post' });
     }
-    // Enforce one claim per user per post
-    const existing = await Claim.findOne({ postId: post._id, requesterId });
-    if (existing) return res.status(httpStatus.BAD_REQUEST).json({ error: 'You have already submitted a claim for this post' });
+    
+    // Different claim logic based on post type
+    if (post.type === 'FOUND') {
+      // For FOUND posts: only one claim per user per post (owner can only claim once)
+      const existing = await Claim.findOne({ postId: post._id, requesterId });
+      if (existing) return res.status(httpStatus.BAD_REQUEST).json({ error: 'You have already submitted a claim for this post' });
+    } else if (post.type === 'LOST') {
+      // For LOST posts: allow unlimited claims per user (multiple people can claim to have found the item)
+      // No restriction on number of claims per user
+    }
     const evidence = [];
     for (const f of (req.files || [])) {
       const result = await uploadBufferToCloudinary(f.buffer, f.originalname, `findmystuff/claims`);
