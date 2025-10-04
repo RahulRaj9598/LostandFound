@@ -7,6 +7,7 @@ const router = Router();
 router.get('/users', requireAuth, requireRole('ADMIN'), AdminController.listPendingUsers);
 router.patch('/users/:id/approve', requireAuth, requireRole('ADMIN'), AdminController.approveUser);
 router.patch('/users/:id/reject', requireAuth, requireRole('ADMIN'), AdminController.rejectUser);
+router.post('/users/approve-without-email', requireAuth, requireRole('ADMIN'), AdminController.approveUsersWithoutEmailVerification);
 router.get('/users/all', requireAuth, requireRole('ADMIN'), AdminController.listUsers);
 router.patch('/users/:id/moderate', requireAuth, requireRole('ADMIN'), AdminController.moderateUser);
 

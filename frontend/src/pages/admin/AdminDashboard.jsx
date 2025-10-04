@@ -7,6 +7,7 @@ import { useAuth } from '../../stores/auth.js'
 export default function AdminDashboard() {
   const me = useAuth(s => s.user)
   const [activeTab, setActiveTab] = useState('users')
+  const [bulkApprovalMessage, setBulkApprovalMessage] = useState('')
   const queryClient = useQueryClient()
   const isAdmin = !!(me && me.role === 'ADMIN')
   const usersQ = useQuery({
@@ -26,12 +27,22 @@ export default function AdminDashboard() {
   })
 
   const approve = useMutation({
-    mutationFn: async (id) => (await api.patch(`/v1/admin/users/${id}/approve`)).data,
+    mutationFn: async ({ id, skipEmailVerification = false }) => 
+      (await api.patch(`/v1/admin/users/${id}/approve`, { skipEmailVerification })).data,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] })
   })
   const reject = useMutation({
     mutationFn: async (id) => (await api.patch(`/v1/admin/users/${id}/reject`)).data,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+  })
+  const bulkApprove = useMutation({
+    mutationFn: async () => (await api.post('/v1/admin/users/approve-without-email')).data,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-users-all'] })
+      setBulkApprovalMessage(`Successfully approved ${data.approvedCount} users and sent ${data.emailsSent} notification emails.`)
+      setTimeout(() => setBulkApprovalMessage(''), 5000)
+    }
   })
   const decide = useMutation({
     mutationFn: async ({ id, decision }) => (await api.patch(`/v1/admin/claims/${id}/decision`, { decision })).data,
@@ -50,9 +61,35 @@ export default function AdminDashboard() {
         </nav>
       </header>
 
+      {bulkApprovalMessage && (
+        <div className="bg-green-50 border border-green-200 rounded-md p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-green-800">{bulkApprovalMessage}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'users' && (
         <section className="rounded-xl border bg-white">
-          <div className="p-4 border-b"><h2 className="font-medium">Pending Users</h2></div>
+          <div className="p-4 border-b flex items-center justify-between">
+            <h2 className="font-medium">Pending Users</h2>
+            {usersQ.data && usersQ.data.some(u => u.needsManualApproval) && (
+              <button 
+                disabled={bulkApprove.isPending} 
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                onClick={() => bulkApprove.mutate()}
+              >
+                {bulkApprove.isPending ? 'Approving...' : 'Approve All Without Email Verification'}
+              </button>
+            )}
+          </div>
           <div className="p-4 overflow-x-auto">
             {usersQ.isLoading && <div className="text-sm text-gray-500">Loading…</div>}
             {usersQ.error && <div className="text-sm text-red-600">Failed to load users</div>}
@@ -63,18 +100,50 @@ export default function AdminDashboard() {
                   <tr className="text-left text-gray-500">
                     <th className="py-2">Name</th>
                     <th className="py-2">Email</th>
+                    <th className="py-2">Email Verified</th>
+                    <th className="py-2">Days Since Signup</th>
+                    <th className="py-2">Status</th>
                     <th className="py-2">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {usersQ.data.map(u => (
-                    <tr key={u._id} className="border-t">
+                    <tr key={u._id} className={`border-t ${u.needsManualApproval ? 'bg-yellow-50' : ''}`}>
                       <td className="py-2">{u.profile?.name || '—'}</td>
                       <td className="py-2">{u.email}</td>
                       <td className="py-2">
+                        <span className={`px-2 py-0.5 rounded-full border text-xs ${
+                          u.emailVerified 
+                            ? 'bg-green-50 text-green-700 border-green-200' 
+                            : 'bg-red-50 text-red-700 border-red-200'
+                        }`}>
+                          {u.emailVerified ? 'Verified' : 'Not Verified'}
+                        </span>
+                      </td>
+                      <td className="py-2">{u.daysSinceSignup || 0} days</td>
+                      <td className="py-2">
+                        {u.needsManualApproval && (
+                          <span className="px-2 py-0.5 rounded-full border bg-yellow-50 text-yellow-700 border-yellow-200 text-xs">
+                            Needs Manual Approval
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2">
                         <div className="inline-flex items-center gap-2">
-                          <button disabled={approve.isPending} className="px-3 py-1 rounded-md border hover:bg-gray-50" onClick={() => approve.mutate(u._id)}>{approve.isPending ? 'Approving…' : 'Approve'}</button>
-                          <button disabled={reject.isPending} className="px-3 py-1 rounded-md border hover:bg-gray-50" onClick={() => reject.mutate(u._id)}>{reject.isPending ? 'Rejecting…' : 'Reject'}</button>
+                          <button 
+                            disabled={approve.isPending} 
+                            className="px-3 py-1 rounded-md border hover:bg-gray-50" 
+                            onClick={() => approve.mutate({ id: u._id, skipEmailVerification: u.needsManualApproval })}
+                          >
+                            {approve.isPending ? 'Approving…' : 'Approve'}
+                          </button>
+                          <button 
+                            disabled={reject.isPending} 
+                            className="px-3 py-1 rounded-md border hover:bg-gray-50" 
+                            onClick={() => reject.mutate(u._id)}
+                          >
+                            {reject.isPending ? 'Rejecting…' : 'Reject'}
+                          </button>
                         </div>
                       </td>
                     </tr>

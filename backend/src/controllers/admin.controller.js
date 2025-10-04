@@ -6,16 +6,71 @@ import Post from '../models/Post.js';
 
 export async function listPendingUsers(req, res, next) {
   try {
-    const users = await User.find({ status: 'PENDING_APPROVAL' }).sort({ createdAt: 1 }).limit(100);
-    return res.json(users);
+    const users = await User.find({ status: 'PENDING_APPROVAL' })
+      .select('-passwordHash')
+      .sort({ createdAt: 1 })
+      .limit(100);
+    
+    // Add additional info for admin decision making
+    const usersWithInfo = users.map(user => ({
+      ...user.toObject(),
+      emailVerified: user.emailVerified,
+      daysSinceSignup: Math.floor((Date.now() - user.createdAt) / (1000 * 60 * 60 * 24)),
+      needsManualApproval: !user.emailVerified // Users who missed email verification
+    }));
+    
+    return res.json(usersWithInfo);
   } catch (err) { next(err); }
 }
 
 export async function approveUser(req, res, next) {
   try {
-    const user = await User.findByIdAndUpdate(req.params.id, { status: 'ACTIVE' }, { new: true });
+    const { skipEmailVerification } = req.body; // Optional: skip email verification requirement
+    
+    const updateData = { status: 'ACTIVE' };
+    
+    // If admin wants to skip email verification (for users who missed the OTP)
+    if (skipEmailVerification === true) {
+      updateData.emailVerified = true;
+    }
+    
+    const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
     if (!user) return res.status(httpStatus.NOT_FOUND).json({ error: 'User not found' });
-    return res.json({ id: user._id, status: user.status });
+    
+    // Send notification email to user about manual approval
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: 'Account Approved - FindMyStuff',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2563eb;">🎉 Account Approved!</h2>
+            <p>Your FindMyStuff account has been manually approved by an administrator.</p>
+            <p>You can now:</p>
+            <ul>
+              <li>Create and manage posts</li>
+              <li>Claim found items</li>
+              <li>Access all platform features</li>
+            </ul>
+            <p>Welcome to FindMyStuff!</p>
+            <hr style="margin: 20px 0;">
+            <p style="color: #666; font-size: 14px;">
+              This approval was done manually by an administrator.
+            </p>
+          </div>
+        `
+      });
+    } catch (emailErr) {
+      // Don't fail the approval if email fails
+      console.error('Failed to send approval email:', emailErr.message);
+    }
+    
+    return res.json({ 
+      id: user._id, 
+      status: user.status, 
+      emailVerified: user.emailVerified,
+      message: 'User approved successfully'
+    });
   } catch (err) { next(err); }
 }
 
@@ -24,6 +79,75 @@ export async function rejectUser(req, res, next) {
     const user = await User.findByIdAndUpdate(req.params.id, { status: 'REJECTED' }, { new: true });
     if (!user) return res.status(httpStatus.NOT_FOUND).json({ error: 'User not found' });
     return res.json({ id: user._id, status: user.status });
+  } catch (err) { next(err); }
+}
+
+export async function approveUsersWithoutEmailVerification(req, res, next) {
+  try {
+    // Find users who are PENDING_APPROVAL and haven't verified their email
+    const usersToApprove = await User.find({ 
+      status: 'PENDING_APPROVAL', 
+      emailVerified: false 
+    });
+    
+    if (usersToApprove.length === 0) {
+      return res.json({ 
+        message: 'No users found that need manual approval',
+        approvedCount: 0 
+      });
+    }
+    
+    // Approve all users and mark email as verified
+    const updateResult = await User.updateMany(
+      { 
+        status: 'PENDING_APPROVAL', 
+        emailVerified: false 
+      },
+      { 
+        status: 'ACTIVE', 
+        emailVerified: true 
+      }
+    );
+    
+    // Send notification emails to all approved users
+    const approvedUsers = await User.find({ 
+      status: 'ACTIVE', 
+      emailVerified: true 
+    }).limit(usersToApprove.length);
+    
+    for (const user of approvedUsers) {
+      try {
+        await sendEmail({
+          to: user.email,
+          subject: 'Account Approved - FindMyStuff',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #2563eb;">🎉 Account Approved!</h2>
+              <p>Your FindMyStuff account has been manually approved by an administrator.</p>
+              <p>You can now:</p>
+              <ul>
+                <li>Create and manage posts</li>
+                <li>Claim found items</li>
+                <li>Access all platform features</li>
+              </ul>
+              <p>Welcome to FindMyStuff!</p>
+              <hr style="margin: 20px 0;">
+              <p style="color: #666; font-size: 14px;">
+                This approval was done manually by an administrator.
+              </p>
+            </div>
+          `
+        });
+      } catch (emailErr) {
+        console.error(`Failed to send approval email to ${user.email}:`, emailErr.message);
+      }
+    }
+    
+    return res.json({ 
+      message: 'Users approved successfully',
+      approvedCount: updateResult.modifiedCount,
+      emailsSent: approvedUsers.length
+    });
   } catch (err) { next(err); }
 }
 
