@@ -1,6 +1,9 @@
+import { useAuth } from '../../stores/auth.js'
 import SignupImage from '../../assets/Signup.jpg'
-
+import { Link } from 'react-router-dom';
 export default function CTA() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <section
       className="relative"
@@ -11,7 +14,11 @@ export default function CTA() {
         <h3 className="text-2xl font-semibold">Ready to reconnect with your belongings?</h3>
         <p className="text-gray-600">Post a lost item or share a found one—it takes less than a minute.</p>
         <div className="flex flex-col sm:flex-row gap-3">
-          <a href="#lost" className="px-5 py-2.5 rounded-md bg-blue-600 text-white hover:bg-blue-700">Get Started</a>
+          {!isAuthenticated ? (
+            <Link to='/auth/signup' className="px-5 py-2.5 rounded-md bg-blue-600 text-white hover:bg-blue-700">Get Started</Link>
+          ):(
+            <Link to="/posts/new" className="px-5 py-2.5 rounded-md bg-blue-600 text-white hover:bg-blue-700">Get Started</Link>
+          )}
           <a href="#found" className="px-5 py-2.5 rounded-md border border-gray-300 hover:bg-gray-50">Learn more</a>
         </div>
       </div>

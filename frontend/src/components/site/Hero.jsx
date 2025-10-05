@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom"
+
 export default function Hero() {
   return (
     <section className="relative isolate overflow-hidden bg-white">
@@ -7,8 +9,8 @@ export default function Hero() {
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">Lost something? Found something?</h1>
             <p className="text-gray-600">FindMyStuff connects finders and owners with a simple claim-and-contact flow. Post lost or found items, verify, and reconnect.</p>
             <div className="flex flex-wrap gap-3">
-              <a href="#lost" className="px-5 py-2.5 rounded-md bg-blue-600 text-white hover:bg-blue-700">Report Lost Item</a>
-              <a href="#found" className="px-5 py-2.5 rounded-md border border-blue-600 text-blue-600 hover:bg-blue-50">Post Found Item</a>
+              <Link to='/posts/new' className="px-5 py-2.5 rounded-md bg-blue-600 text-white hover:bg-blue-700">Report Lost Item</Link>
+              <Link to='/posts/new' className="px-5 py-2.5 rounded-md border border-blue-600 text-blue-600 hover:bg-blue-50">Post Found Item</Link>
             </div>
             <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
               <HeroStat label="items posted" value="12,450+" />
