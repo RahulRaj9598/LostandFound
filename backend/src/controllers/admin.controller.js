@@ -53,6 +53,9 @@ export async function approveUser(req, res, next) {
               <li>Access all platform features</li>
             </ul>
             <p>Welcome to FindMyStuff!</p>
+            <br/>
+            <p>Here is the link to login:</p>
+            <a href="https://lostand-found-kappa.vercel.app">https://lostand-found-kappa.vercel.app/</a>
             <hr style="margin: 20px 0;">
             <p style="color: #666; font-size: 14px;">
               This approval was done manually by an administrator.
@@ -131,6 +134,9 @@ export async function approveUsersWithoutEmailVerification(req, res, next) {
                 <li>Access all platform features</li>
               </ul>
               <p>Welcome to FindMyStuff!</p>
+              <br/>
+              <p>Here is the link to login:</p>
+              <a href="https://lostand-found-kappa.vercel.app">https://lostand-found-kappa.vercel.app/</a>
               <hr style="margin: 20px 0;">
               <p style="color: #666; font-size: 14px;">
                 This approval was done manually by an administrator.
