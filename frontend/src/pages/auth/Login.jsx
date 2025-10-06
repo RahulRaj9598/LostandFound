@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Link } from 'react-router-dom'
 import SignupImage from '../../assets/Signup.jpg'
 
 export default function Login() {
@@ -69,6 +70,7 @@ export default function Login() {
           <div className="mt-4 text-sm text-gray-600">
             <button type="button" className="underline" onClick={() => navigate('/auth/request-otp')}>Sign in with OTP instead</button>
           </div>
+          <Link to='/auth/signup'><p className='text-blue-500 text-sm underline'>Don't have an Account with us?</p></Link>
           {msg && <p className="mt-3 text-green-600 text-sm">{msg}</p>}
           {err && <p className="mt-3 text-red-600 text-sm">{err}</p>}
         </CardContent>

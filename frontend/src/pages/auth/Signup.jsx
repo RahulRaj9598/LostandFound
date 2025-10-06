@@ -48,7 +48,8 @@ export default function Signup() {
         backgroundPosition: 'center'
       }}
     >
-      <div className="min-h-screen bg-white/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="min-h-screen bg-white/60 backdrop-blur-sm flex items-center justify-center p-4 flex-col">
+      <h1 className=' text-md font-bold text-blue-700'>Please Check your SPAM for OTP once</h1>
       <Card className="w-full max-w-md">
         <CardHeader>
           <h1 className="text-xl font-semibold">Create your account</h1>
